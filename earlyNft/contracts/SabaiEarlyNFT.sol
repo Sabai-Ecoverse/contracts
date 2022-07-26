@@ -175,8 +175,9 @@ contract SabaiEarlyNFT is ERC721Enumerable, Ownable {
 
         typesIds[_typeId].push(incrementId);
 
-        _safeMint(msg.sender, incrementId);
         addressesTokensCounts[msg.sender]+=1;
+
+        _safeMint(msg.sender, incrementId);
     }
 
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory)
