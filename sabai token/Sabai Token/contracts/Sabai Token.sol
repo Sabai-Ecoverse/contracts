@@ -1,12 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./AERC20.sol";
+import "./AERC20Burnable.sol";
+import "./Ownable.sol";
+import "./IAntisnipe.sol";
 
-contract SabaiToken is ERC20, ERC20Burnable, Ownable {
-    constructor() ERC20("SABAI", "SABAI") {
+contract SabaiToken is AERC20, AERC20Burnable, Ownable {
+
+    constructor() AERC20("SABAI", "SABAI") {
         _mint(msg.sender, 1e18*2650000000);
+    }
+    
+    function setAntisnipe(address value) external onlyOwner {
+        _setAntisnipe(value);
+    }
+
+    function setIsAntisnipe(bool value) external onlyOwner {
+        _setIsAntisnipe(value);
     }
 }
