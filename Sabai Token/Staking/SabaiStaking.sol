@@ -58,17 +58,17 @@ contract SabaiStaking is Ownable {
     }
 
     function getReward(bytes32 _depositId) public onlyOwner {
-        require(deposits[_depositId].get == false); // You have already taken a deposit
-        require(_checkUserDeposit(msg.sender, _depositId)); // You are not the owner of the deposit
+        require(deposits[_depositId].get == false, "You have already taken a deposit"); // You have already taken a deposit
+        require(_checkUserDeposit(msg.sender, _depositId), "You are not the owner of the deposit"); // You are not the owner of the deposit
 
         // If the deposit is completed
         if (getCurrentTime() > deposits[_depositId].endTS) {
-             deposits[_depositId].claimed = deposits[_depositId].amount + deposits[_depositId].amount + ((deposits[_depositId].amount / 100) * percentageOfEarnings);
+             deposits[_depositId].claimed = deposits[_depositId].amount + ((deposits[_depositId].amount / 100) * percentageOfEarnings);
         } else { // If the deposit is closed ahead of schedule (penalty)
-            deposits[_depositId].claimed = deposits[_depositId].amount + ((deposits[_depositId].amount / 100) * penaltyPercentage);
+            deposits[_depositId].claimed = deposits[_depositId].amount - ((deposits[_depositId].amount / 100) * penaltyPercentage);
         }
 
-        _token.transfer(msg.sender, deposits[_depositId].claimed);
+        require(_token.transfer(msg.sender, deposits[_depositId].claimed));
         totalActualDepositsAmount -= deposits[_depositId].claimed;
 
         deposits[_depositId].get = true;
