@@ -404,7 +404,7 @@ contract AERC20 is Context, IERC20, IERC20Metadata {
         antisnipe = IAntisnipe(value);
     }
 
-    function _setIsAntisnipe(bool value) internal {
+    function _disableAntisnipe() internal {
         isAntisnipe = false;
     }
 

@@ -16,7 +16,7 @@ contract SabaiToken is AERC20, AERC20Burnable, Ownable {
         _setAntisnipe(value);
     }
 
-    function setIsAntisnipe(bool value) external onlyOwner {
-        _setIsAntisnipe(value);
+    function disableAntisnipe() external onlyOwner {
+        _disableAntisnipe();
     }
 }
