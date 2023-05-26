@@ -20,12 +20,10 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
         address  beneficiary;
         // cliff period in seconds
         uint256  cliff;
-        // start time of the vesting period
+        // start time of the vesting
         uint256  start;
-        // duration of the vesting period in seconds
+        // duration of the vesting period after cliff in seconds
         uint256  duration;
-        // duration of a slice period for the vesting in seconds
-        uint256 slicePeriodSeconds;
         // whether or not the vesting is revocable
         bool  revocable;
         // total amount of tokens to be released at the end of the vesting
@@ -44,8 +42,8 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
     uint256 private vestingSchedulesTotalAmount;
     mapping(address => uint256) private holdersVestingCount;
 
-    event Released(uint256 amount);
-    event Revoked();
+
+    address public ManagerAddress;
 
     /**
     * @dev Reverts if no vesting schedule matches the passed identifier.
@@ -68,14 +66,29 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
      * @dev Creates a vesting contract.
      * @param token_ address of the ERC20 token contract
      */
-    constructor(address token_) {
+    constructor(address token_, address _managerAddress) {
         require(token_ != address(0x0));
+        require(_managerAddress != address(0x0));
+
         _token = IERC20(token_);
+        ManagerAddress = _managerAddress;
     }
 
-    receive() external payable {}
+    modifier onlyManager() {
+        _checkManager();
+        _;
+    }
 
-    fallback() external payable {}
+    function _checkManager() internal view virtual {
+        require(ManagerAddress == _msgSender(), "Ownable: caller is not the manager");
+    }
+
+    function changeManagerAddress(address _newManagerAddress)
+    public 
+    onlyOwner {
+        require(_newManagerAddress != address(0x0));
+        ManagerAddress = _newManagerAddress;
+    }
 
     /**
     * @dev Returns the number of vesting schedules associated to a beneficiary.
@@ -136,10 +149,9 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
     /**
     * @notice Creates a new vesting schedule for a beneficiary.
     * @param _beneficiary address of the beneficiary to whom vested tokens are transferred
-    * @param _start start time of the vesting period
+    * @param _start start time of the vesting 
     * @param _cliff duration in seconds of the cliff in which tokens will begin to vest
-    * @param _duration duration in seconds of the period in which the tokens will vest
-    * @param _slicePeriodSeconds duration of a slice period for the vesting in seconds
+    * @param _duration duration in seconds after cliff of the period in which the tokens will vest
     * @param _revocable whether the vesting is revocable or not
     * @param _amount total amount of tokens to be released at the end of the vesting
     */
@@ -148,19 +160,17 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
         uint256 _start,
         uint256 _cliff,
         uint256 _duration,
-        uint256 _slicePeriodSeconds,
         bool _revocable,
         uint256 _amount
     )
         public
-        onlyOwner{
+        onlyManager{
         require(
             this.getWithdrawableAmount() >= _amount,
             "TokenVesting: cannot create vesting schedule because not sufficient tokens"
         );
         require(_duration > 0, "TokenVesting: duration must be > 0");
         require(_amount > 0, "TokenVesting: amount must be > 0");
-        require(_slicePeriodSeconds >= 1, "TokenVesting: slicePeriodSeconds must be >= 1");
         bytes32 vestingScheduleId = this.computeNextVestingScheduleIdForHolder(_beneficiary);
         uint256 cliff = _start.add(_cliff);
         vestingSchedules[vestingScheduleId] = VestingSchedule(
@@ -169,7 +179,6 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
             cliff,
             _start,
             _duration,
-            _slicePeriodSeconds,
             _revocable,
             _amount,
             0,
@@ -182,12 +191,11 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
     }
 
     /**
-    * @notice Creates new vestings schedule for a beneficiary.
+    * @notice Creates new vesting schedules for a beneficiaries.
     * @param _beneficiary address of the beneficiary to whom vested tokens are transferred
-    * @param _start start time of the vesting period
+    * @param _start start time of the vesting 
     * @param _cliff duration in seconds of the cliff in which tokens will begin to vest
-    * @param _duration duration in seconds of the period in which the tokens will vest
-    * @param _slicePeriodSeconds duration of a slice period for the vesting in seconds
+    * @param _duration duration in seconds after cliff of the period in which the tokens will vest
     * @param _revocable whether the vesting is revocable or not
     * @param _amount total amount of tokens to be released at the end of the vesting
     */
@@ -197,12 +205,10 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
         address  beneficiary;
         // cliff period in seconds
         uint256  cliff;
-        // start time of the vesting period
+        // start time of the vesting 
         uint256  start;
-        // duration of the vesting period in seconds
+        // duration of the vesting period after cliff in seconds 
         uint256  duration;
-        // duration of a slice period for the vesting in seconds
-        uint256 slicePeriodSeconds;
         // whether or not the vesting is revocable
         bool  revocable;
         // total amount of tokens to be released at the end of the vesting
@@ -211,16 +217,18 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
 
     function createVestingScheduleMany(VestingScheduleMany[] memory _schedules)
         public
-        onlyOwner{
+        onlyManager{
 
+        uint256 SchedulesManyAmount;     
         for (uint256 i=0; i<_schedules.length; i++) {
-            require(
-                this.getWithdrawableAmount() >= _schedules[i].amount,
-                "TokenVesting: cannot create vesting schedule because not sufficient tokens"
-            );
             require(_schedules[i].duration > 0, "TokenVesting: duration must be > 0");
             require(_schedules[i].amount > 0, "TokenVesting: amount must be > 0");
-            require(_schedules[i].slicePeriodSeconds >= 1, "TokenVesting: slicePeriodSeconds must be >= 1");
+            
+            SchedulesManyAmount.add(_schedules[i].amount);
+            require(
+                this.getWithdrawableAmount() >= SchedulesManyAmount,
+                "TokenVesting: cannot create vesting schedule because not sufficient tokens"
+            );
         }
         for (uint256 i=0; i<_schedules.length; i++) {
                 bytes32 vestingScheduleId = this.computeNextVestingScheduleIdForHolder(_schedules[i].beneficiary);
@@ -231,7 +239,6 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
                     cliff,
                     _schedules[i].start,
                     _schedules[i].duration,
-                    _schedules[i].slicePeriodSeconds,
                     _schedules[i].revocable,
                     _schedules[i].amount,
                     0,
@@ -250,7 +257,7 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
     */
     function revoke(bytes32 vestingScheduleId)
         public
-        onlyOwner
+        onlyManager
         onlyIfVestingScheduleNotRevoked(vestingScheduleId){
         VestingSchedule storage vestingSchedule = vestingSchedules[vestingScheduleId];
         require(vestingSchedule.revocable == true, "TokenVesting: vesting is not revocable");
@@ -270,7 +277,7 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
     function withdraw(uint256 amount)
         public
         nonReentrant
-        onlyOwner{
+        onlyManager{
         require(this.getWithdrawableAmount() >= amount, "TokenVesting: not enough withdrawable funds");
         _token.safeTransfer(owner(), amount);
     }
@@ -289,17 +296,16 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
         onlyIfVestingScheduleNotRevoked(vestingScheduleId){
         VestingSchedule storage vestingSchedule = vestingSchedules[vestingScheduleId];
         bool isBeneficiary = msg.sender == vestingSchedule.beneficiary;
-        bool isOwner = msg.sender == owner();
+
         require(
-            isBeneficiary || isOwner,
-            "TokenVesting: only beneficiary and owner can release vested tokens"
+            isBeneficiary,
+            "TokenVesting: only beneficiary can release vested tokens"
         );
         uint256 vestedAmount = _computeReleasableAmount(vestingSchedule);
         require(vestedAmount >= amount, "TokenVesting: cannot release tokens, not enough vested tokens");
         vestingSchedule.released = vestingSchedule.released.add(amount);
-        address payable beneficiaryPayable = payable(vestingSchedule.beneficiary);
         vestingSchedulesTotalAmount = vestingSchedulesTotalAmount.sub(amount);
-        _token.safeTransfer(beneficiaryPayable, amount);
+        _token.safeTransfer(vestingSchedule.beneficiary, amount);
     }
 
     /**
@@ -389,15 +395,12 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
         uint256 currentTime = getCurrentTime();
         if ((currentTime < vestingSchedule.cliff) || vestingSchedule.revoked == true) {
             return 0;
-        } else if (currentTime >= vestingSchedule.start.add(vestingSchedule.duration)) {
+        } else if (currentTime >= vestingSchedule.cliff.add(vestingSchedule.duration)) {
             return vestingSchedule.amountTotal.sub(vestingSchedule.released);
         } else {
-            uint256 timeFromStart = currentTime.sub(vestingSchedule.start);
-            uint secondsPerSlice = vestingSchedule.slicePeriodSeconds;
-            uint256 vestedSlicePeriods = timeFromStart.div(secondsPerSlice);
-            uint256 vestedSeconds = vestedSlicePeriods.mul(secondsPerSlice);
-            uint256 vestedAmount = vestingSchedule.amountTotal.mul(vestedSeconds).div(vestingSchedule.duration);
-            vestedAmount = vestedAmount.sub(vestingSchedule.released);
+            uint256 timeAfterCliff = currentTime.sub(vestingSchedule.cliff);
+            uint256 vestedAmount = vestingSchedule.amountTotal.mul(timeAfterCliff).div(vestingSchedule.duration);
+            vestedAmount.sub(vestingSchedule.released);
             return vestedAmount;
         }
     }
