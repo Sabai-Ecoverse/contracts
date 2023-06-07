@@ -87,6 +87,7 @@ contract SabaiStaking is Ownable {
         depositsUsers[depositId] = msg.sender;
 
         if (!users[msg.sender]) {
+            users[msg.sender] = true;
             usersArray.push(msg.sender);
         }
 
@@ -157,7 +158,7 @@ contract SabaiStaking is Ownable {
         uint256 totalActualRewardsAmount = 0;
         for (uint i = 0; i < totalDepositsCount; i++) {
             if (deposits[depositsCounter[i]].get == false) {
-                totalActualRewardsAmount.add(deposits[depositsCounter[i]].amount.mul(percentageOfEarnings).div(100));
+                totalActualRewardsAmount = totalActualRewardsAmount.add(deposits[depositsCounter[i]].amount.mul(percentageOfEarnings).div(100));
             }
         }
 
