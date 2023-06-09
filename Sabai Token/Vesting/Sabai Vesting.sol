@@ -400,7 +400,7 @@ contract SabaiVesting is Ownable, ReentrancyGuard{
         } else {
             uint256 timeAfterCliff = currentTime.sub(vestingSchedule.cliff);
             uint256 vestedAmount = vestingSchedule.amountTotal.mul(timeAfterCliff).div(vestingSchedule.duration);
-            vestedAmount.sub(vestingSchedule.released);
+            vestedAmount = vestedAmount.sub(vestingSchedule.released);
             return vestedAmount;
         }
     }
